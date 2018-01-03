@@ -1,0 +1,12 @@
+12/24/17
+
+Idea1 -> use the gdax image of order book. make sure to properly scale it and maybe change colors. feed the pixels into a ANN and the current price and then use reinforcement learning to buy, sell, or hold. 
+
+
+Current state based off of -> pixels from order book image, current eth price, current usd and eth holdings.
+
+reward function -> based off evaluation of all assets post action item. factor in fees. 
+
+
+Idea 2:
+only use eth prices every second for the last minute. 
