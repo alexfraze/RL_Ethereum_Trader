@@ -68,7 +68,7 @@ class kerras_trading_net(object):
 	def __init__(self, manager):
 		self.NN = Sequential()
 		self.trade_manager = manager 
-		self.lr = 0.01
+		self.lr = 0.005
 		self.mini_batch_training = []	
 		self.mini_batch_targets = []
 
@@ -91,6 +91,10 @@ class kerras_trading_net(object):
 		self.NN = loaded_model
 		self.NN.compile(loss='mse', optimizer=rms)
 		print("Loaded model from disk")		
+		self.sub_batch_size = 14
+		self.mini_batch_size = 30
+		
+
 
 	def trade(self, price_history):
 		state = price_history
@@ -100,7 +104,7 @@ class kerras_trading_net(object):
 	def update(self, price_history, decision, prediction, new_price, new_portfolio, old_portfolio, portfolio_balance):
 		reward = (new_portfolio - old_portfolio)*50
 		print(reward)
-		reward -= portfolio_balance/500
+		reward -= portfolio_balance/1000
 		print("reward: " + str(reward))
 		gamma = .8
 		updated_state_prediction = reward+gamma*np.max(prediction)
@@ -114,16 +118,14 @@ class kerras_trading_net(object):
 		updated_prediction = prediction
 		self.mini_batch_targets.append(updated_prediction)
 		self.mini_batch_training.append(price_history)
-		sub_batch_size = 10
-		mini_batch_size = 30
 		epochs = 1000
 		print("mini batch size: " + str(len(self.mini_batch_targets)))
-		if(len(self.mini_batch_targets)>=mini_batch_size):
+		if(len(self.mini_batch_targets)>=self.mini_batch_size):
 			print("back propogating")
 			# indexes = xrange(sub_batch_size)
-			indexes = np.random.choice(mini_batch_size, sub_batch_size, replace=False)
+			indexes = np.random.choice(self.mini_batch_size, self.sub_batch_size, replace=False)
 			self.NN.fit(np.array(self.mini_batch_training)[indexes], 
-				np.array(self.mini_batch_targets)[indexes], batch_size=sub_batch_size, epochs=epochs, verbose=0)
+				np.array(self.mini_batch_targets)[indexes], batch_size=self.sub_batch_size, epochs=epochs, verbose=0)
 			sample_to_forget = indexes[0] #TA told other kids to forget one of used samples.
 			del self.mini_batch_targets[sample_to_forget]
 			del self.mini_batch_training[sample_to_forget]
@@ -166,16 +168,17 @@ while(starting_rep<=reps):
 	# weighted_outcome = outcome #weight outcomes? 
 	decision = np.argmax(outcome)
 	pos_outcome = outcome-np.min(outcome)
-	decision_weight = float(pos_outcome[decision]/np.sum(pos_outcome))*20
+	decision_weight = float(pos_outcome[decision]/np.sum(pos_outcome))*25
 	print(outcome)
 	print(decision)
 	print(decision_weight)
-	time.sleep(sleep)
-	if(decision==0): 
-		trader.buy_eth(decision_weight) #buy USD weight worth of ETH
-	if(decision==2):
-		trader.sell_eth(decision_weight/float(price_history[99])) #sell USD weigth worth of ETH.
 	old_portfolio = trader.calculate_current_value()
+	time.sleep(sleep)
+	if(starting_rep>=network.mini_batch_size):
+		if(decision==0): 
+			trader.buy_eth(decision_weight) #buy USD weight worth of ETH
+		if(decision==2):
+			trader.sell_eth(decision_weight/float(price_history[99])) #sell USD weigth worth of ETH.
 	new_portfolio = trader.calculate_current_value()
 	new_price = trader.curr_eth_to_US_ratio
 	trader.print_portfolio()
@@ -188,7 +191,7 @@ while(starting_rep<=reps):
 	price_history = np.roll(price_history, -1)
 	price_history[99] = new_price
 	print("repetition: " + str(starting_rep))
-	if(starting_rep%50==0):
+	if(starting_rep%10==0):
 		print("writing network weights to file")
 		#save network weights
 		json_network = network.NN.to_json()
